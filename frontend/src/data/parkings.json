@@ -1,0 +1,80 @@
+[
+  {
+    "id": "P001",
+    "name": "Parking Rynek Północ",
+    "address": "ul. Kiełbaśnicza 12, Wrocław",
+    "district": "Stare Miasto",
+    "city": "Wrocław",
+    "pricePerHour": 8,
+    "totalSpots": 80,
+    "availableSpots": 18,
+    "features": ["Monitoring 24/7", "Zadaszony", "Ładowanie EV"],
+    "highlight": "Najczęściej wybierany",
+    "illustration": "center"
+  },
+  {
+    "id": "P002",
+    "name": "Parking Dworzec Centrum",
+    "address": "ul. Piłsudskiego 98, Wrocław",
+    "district": "Dworzec Główny",
+    "city": "Wrocław",
+    "pricePerHour": 6,
+    "totalSpots": 110,
+    "availableSpots": 32,
+    "features": ["Monitoring 24/7", "Dostęp 24/7"],
+    "highlight": "Blisko dworca",
+    "illustration": "station"
+  },
+  {
+    "id": "P003",
+    "name": "Parking Sky Tower",
+    "address": "ul. Powstańców Śląskich 95, Wrocław",
+    "district": "Krzyki",
+    "city": "Wrocław",
+    "pricePerHour": 7,
+    "totalSpots": 120,
+    "availableSpots": 24,
+    "features": ["Zadaszony", "Monitoring 24/7", "Dostęp 24/7"],
+    "highlight": "Parking podziemny",
+    "illustration": "tower"
+  },
+  {
+    "id": "P004",
+    "name": "Parking Grunwaldzki",
+    "address": "pl. Grunwaldzki 10, Wrocław",
+    "district": "Śródmieście",
+    "city": "Wrocław",
+    "pricePerHour": 5,
+    "totalSpots": 70,
+    "availableSpots": 12,
+    "features": ["Dostęp 24/7", "Ładowanie EV"],
+    "highlight": "Dobra cena",
+    "illustration": "square"
+  },
+  {
+    "id": "P005",
+    "name": "Parking Magnolia Zachód",
+    "address": "ul. Legnicka 58, Wrocław",
+    "district": "Fabryczna",
+    "city": "Wrocław",
+    "pricePerHour": 4,
+    "totalSpots": 160,
+    "availableSpots": 47,
+    "features": ["Monitoring 24/7", "Dostęp 24/7"],
+    "highlight": "Najniższa cena",
+    "illustration": "garden"
+  },
+  {
+    "id": "P006",
+    "name": "Parking Hala Wschód",
+    "address": "ul. Wystawowa 1, Wrocław",
+    "district": "Zalesie",
+    "city": "Wrocław",
+    "pricePerHour": 5,
+    "totalSpots": 90,
+    "availableSpots": 9,
+    "features": ["Dostęp 24/7", "Monitoring 24/7"],
+    "highlight": "Blisko atrakcji",
+    "illustration": "arena"
+  }
+]
