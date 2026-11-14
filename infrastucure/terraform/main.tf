@@ -65,3 +65,19 @@ module "vpc" {
   app_port = var.app_port
   db_port  = var.db_port
 }
+
+module "rds" {
+  source = "./modules/rds"
+
+  project = var.project
+
+  db_subnet_group_name = module.vpc.db_subnet_group_name
+  db_security_group_id = module.vpc.security_group_ids.db
+
+  db_name     = "parking_reservation"
+  db_username = "parking_admin"
+
+  instance_class    = "db.t4g.micro"
+  allocated_storage = 20
+  db_port           = var.db_port
+}

@@ -22,3 +22,23 @@ output "security_group_ids" {
 output "db_subnet_group_name" {
   value = module.vpc.db_subnet_group_name
 }
+
+output "rds_endpoint" {
+  description = "Adres endpointu PostgreSQL"
+  value       = module.rds.db_endpoint
+}
+
+output "rds_port" {
+  description = "Port PostgreSQL"
+  value       = module.rds.db_port
+}
+
+output "rds_database_name" {
+  description = "Nazwa bazy danych"
+  value       = module.rds.db_name
+}
+
+output "rds_secret_arn" {
+  description = "ARN sekretu administratora PostgreSQL"
+  value       = module.rds.db_secret_arn
+}
