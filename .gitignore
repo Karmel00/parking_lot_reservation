@@ -27,3 +27,6 @@ terraform.rc
 *.pem
 *.key
 .env
+
+# Node.js dependencies
+node_modules/
