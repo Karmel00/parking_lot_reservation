@@ -81,3 +81,69 @@ module "rds" {
   allocated_storage = 20
   db_port           = var.db_port
 }
+
+module "ecr" {
+  source = "./modules/ecr"
+
+  project  = var.project
+  services = var.backend_services
+}
+
+module "compute" {
+  source = "./modules/compute"
+
+  project    = var.project
+  region     = var.region
+  account_id = data.aws_caller_identity.current.account_id
+
+  # SG app daje dostęp do bazy
+  vpc_id                   = module.vpc.vpc_id
+  subnet_id                = module.vpc.subnet_ids.public_web
+  extra_security_group_ids = [module.vpc.security_group_ids.app]
+
+  instance_type = var.instance_type
+  architecture  = var.instance_architecture
+
+  ecr_registry        = module.ecr.registry
+  ecr_repository_arns = module.ecr.repository_arns
+
+  db_host       = module.rds.db_endpoint
+  db_port       = module.rds.db_port
+  db_name       = module.rds.db_name
+  db_secret_arn = module.rds.db_secret_arn
+}
+
+module "frontend" {
+  source = "./modules/frontend"
+
+  project           = var.project
+  account_id        = data.aws_caller_identity.current.account_id
+  api_origin_domain = module.compute.public_dns
+}
+
+module "budget" {
+  source = "./modules/budget"
+
+  project   = var.project
+  limit_usd = var.budget_limit_usd
+  emails    = var.budget_emails
+}
+
+# Wartości dla CI (bez dostępu do state)
+locals {
+  public_parameters = {
+    "app-url"         = "https://${module.frontend.domain_name}"
+    "frontend-bucket" = module.frontend.bucket_name
+    "distribution-id" = module.frontend.distribution_id
+    "instance-id"     = module.compute.instance_id
+    "ecr-registry"    = module.ecr.registry
+  }
+}
+
+resource "aws_ssm_parameter" "public" {
+  for_each = local.public_parameters
+
+  name  = "/${var.project}/public/${each.key}"
+  type  = "String"
+  value = each.value
+}

@@ -69,4 +69,39 @@ variable "users" {
   type = map(object({
     policies = list(string)
   }))
+  default = {
+    Kamil  = { policies = ["admin"] }
+    Michal = { policies = ["frontend"] }
+    Pawel  = { policies = ["backend", "db"] }
+  }
+}
+
+variable "backend_services" {
+  description = "Serwisy backendu"
+  type        = list(string)
+  default     = ["reservation-service", "authentication-service", "notification-service"]
+}
+
+variable "instance_type" {
+  description = "Typ VM"
+  type        = string
+  default     = "t3.micro"
+}
+
+variable "instance_architecture" {
+  description = "Architektura VM (x86_64 albo arm64)"
+  type        = string
+  default     = "x86_64"
+}
+
+variable "budget_limit_usd" {
+  description = "Limit alertu kosztowego (USD)"
+  type        = number
+  default     = 30
+}
+
+variable "budget_emails" {
+  description = "Adresy alertów (pusta lista = brak)"
+  type        = list(string)
+  default     = []
 }

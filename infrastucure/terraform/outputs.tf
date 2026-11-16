@@ -42,3 +42,29 @@ output "rds_secret_arn" {
   description = "ARN sekretu administratora PostgreSQL"
   value       = module.rds.db_secret_arn
 }
+
+output "app_url" {
+  description = "Adres aplikacji (CloudFront)"
+  value       = "https://${module.frontend.domain_name}"
+}
+
+output "frontend_bucket" {
+  value = module.frontend.bucket_name
+}
+
+output "cloudfront_distribution_id" {
+  value = module.frontend.distribution_id
+}
+
+output "backend_instance_id" {
+  description = "VM z backendem"
+  value       = module.compute.instance_id
+}
+
+output "backend_public_ip" {
+  value = module.compute.public_ip
+}
+
+output "ecr_repository_urls" {
+  value = module.ecr.repository_urls
+}

@@ -148,6 +148,47 @@ data "aws_iam_policy_document" "backend" {
     actions   = ["ec2:DescribeVpcs", "ec2:DescribeSubnets", "ec2:DescribeSecurityGroups"]
     resources = ["*"]
   }
+
+  # Dostęp do VM przez SSM
+  statement {
+    sid = "DescribeInstances"
+    actions = [
+      "ec2:DescribeInstances",
+      "ec2:DescribeInstanceStatus",
+      "ssm:DescribeInstanceInformation",
+      "ssm:GetCommandInvocation",
+      "ssm:ListCommands",
+      "ssm:ListCommandInvocations",
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid       = "SsmProjectInstances"
+    actions   = ["ssm:StartSession", "ssm:SendCommand"]
+    resources = ["arn:aws:ec2:${var.region}:${local.account_id}:instance/*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "ssm:resourceTag/Project"
+      values   = [var.project]
+    }
+  }
+
+  statement {
+    sid     = "SsmDocuments"
+    actions = ["ssm:StartSession", "ssm:SendCommand"]
+    resources = [
+      "arn:aws:ssm:${var.region}::document/AWS-RunShellScript",
+      "arn:aws:ssm:${var.region}:${local.account_id}:document/SSM-SessionManagerRunShell",
+    ]
+  }
+
+  statement {
+    sid       = "SsmOwnSessions"
+    actions   = ["ssm:TerminateSession", "ssm:ResumeSession"]
+    resources = ["arn:aws:ssm:${var.region}:${local.account_id}:session/&{aws:username}-*"]
+  }
 }
 
 # DB: zarządzanie RDS projektu (bez tworzenia/usuwania)

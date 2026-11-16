@@ -1,6 +1,5 @@
-# parking-lot-reservation – Terraform
-
-Konto `907813425125`, region `eu-west-1`, Terraform `1.16.6`.
+# INFRASTUCURE
+region `eu-west-1`, Terraform `1.16.6`.
 
 ```
 main.tf            wersje, backend S3, provider, moduły
@@ -12,20 +11,31 @@ modules/
   policies/        polityki IAM
   iam/             użytkownicy i hasła
   vpc/             sieć
+  rds/             PostgreSQL
+  ecr/             repozytoria obrazów backendu
+  compute/         VM z backendem (vm-init.sh.tftpl = inicjalizacja VM)
+  frontend/        S3 + CloudFront
+  budget/          alert kosztowy
+../app/            pliki dla CI (Terraform ich nie używa)
 ```
+
+## Architektura
+
+## Inicjalizacja VM
+
+`modules/compute/vm-init.sh.tftpl` działa raz, przy pierwszym starcie VM: instaluje Dockera i zapisuje `/opt/parking/bin/apply.sh`.
 
 ## Uruchomienie
 
 ```bash
-export AWS_PROFILE=parking-lot
-terraform init
+terraform init --reconfigure
 terraform plan
 terraform apply
 ```
 
 ## Użytkownicy
 
-Edytuj `terraform.tfvars` i zrób `terraform apply`. Polityki: `admin`, `frontend`, `backend`, `db`.
+Edytuj `variables.tf` i zrób `terraform apply`. Polityki: `admin`, `frontend`, `backend`, `db`.
 
 ```hcl
 Ania = { policies = ["frontend"] }
@@ -38,7 +48,6 @@ Ania = { policies = ["frontend"] }
 ./hasla.sh Michal   # jedna osoba (wymaga jq)
 ```
 
-Link i login wyślij zwykłym kanałem, hasło osobno jednorazowym linkiem (np. Bitwarden Send). Przy pierwszym logowaniu użytkownik ustawia własne hasło.
 
 Reset hasła:
 

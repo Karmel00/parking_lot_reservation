@@ -1,0 +1,154 @@
+#!/bin/bash
+# Jednorazowa inicjalizacja VM (user_data, tylko pierwszy start)
+set -euxo pipefail
+
+# Swap, bo 1 GB RAM to mało na cztery kontenery
+if [ ! -f /swapfile ]; then
+  dd if=/dev/zero of=/swapfile bs=1M count=1024
+  chmod 600 /swapfile
+  mkswap /swapfile
+  echo '/swapfile none swap sw 0 0' >>/etc/fstab
+fi
+swapon -a
+
+dnf install -y docker jq amazon-ecr-credential-helper
+
+# Wtyczka Compose (brak w repozytorium AL2023)
+mkdir -p /usr/local/lib/docker/cli-plugins
+curl -fsSL "https://github.com/docker/compose/releases/download/${compose_version}/docker-compose-linux-$(uname -m)" \
+  -o /usr/local/lib/docker/cli-plugins/docker-compose
+chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+# Logowanie do ECR rolą instancji
+mkdir -p /root/.docker
+cat >/root/.docker/config.json <<'JSON'
+{ "credHelpers": { "${ecr_registry}": "ecr-login" } }
+JSON
+
+systemctl enable --now docker
+
+mkdir -p /opt/parking/bin
+# Certyfikaty CA dla TLS do RDS
+curl -fsSL https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -o /opt/parking/rds-ca.pem
+
+# apply.sh: start stosu; CI wywołuje go z --pull po wysłaniu obrazów
+cat >/opt/parking/bin/apply.sh <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROJECT="${project}"
+export AWS_DEFAULT_REGION="${region}" DOCKER_CONFIG=/root/.docker
+cd /opt/parking
+
+# Wdrożenie i timer nie działają jednocześnie
+exec 9>/run/parking.lock
+flock 9
+
+PULL=0
+[[ "$*" == *--pull* ]] && PULL=1
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+param() {
+  aws ssm get-parameter --name "/$PROJECT/$1" --query Parameter.Value --output text
+}
+
+# docker-compose.yml i nginx.conf wysyła CI do SSM
+param deploy/compose >"$tmp/docker-compose.yml"
+param deploy/nginx >"$tmp/nginx.conf"
+
+# Zmienne dla docker-compose.yml
+cat >"$tmp/.env" <<ENV
+PROJECT=$PROJECT
+AWS_REGION=$AWS_DEFAULT_REGION
+ECR_REGISTRY=${ecr_registry}
+LOG_GROUP=${log_group}
+ENV
+
+# Zmienne kontenerów: jawne z SSM + login i hasło z sekretu RDS
+secret=$(aws secretsmanager get-secret-value --secret-id "${db_secret_arn}" --query SecretString --output text)
+{
+  param config/app-env
+  echo "DB_USER=$(jq -r .username <<<"$secret")"
+  echo "DB_PASSWORD='$(jq -r .password <<<"$secret" | sed "s/'/\\\\'/g")'"
+} >"$tmp/app.env"
+
+# Zapis w miejscu, bo nginx.conf jest montowany jako plik
+changed=""
+for f in docker-compose.yml nginx.conf .env app.env; do
+  if ! cmp -s "$tmp/$f" "$f"; then
+    cat "$tmp/$f" >"$f"
+    changed="$changed $f"
+  fi
+done
+chmod 600 app.env
+
+# Bez .applied timer ponowi nieudany start
+[[ -n "$changed" ]] && rm -f .applied
+
+if ((PULL)); then
+  docker compose pull --quiet
+fi
+
+if ((PULL)) || [[ ! -f .applied ]]; then
+  echo "Zmiany:$changed (pull=$PULL)"
+  docker compose up -d --remove-orphans
+  if [[ "$changed" == *nginx.conf* ]]; then
+    docker compose restart gateway
+  fi
+  docker image prune -f >/dev/null
+  touch .applied
+fi
+
+docker compose ps
+SCRIPT
+chmod 755 /opt/parking/bin/apply.sh
+
+# Start stosu po restarcie VM
+cat >/etc/systemd/system/parking.service <<'UNIT'
+[Unit]
+Description=Parking lot reservation (Docker Compose)
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+Environment=HOME=/root
+ExecStart=/opt/parking/bin/apply.sh --pull
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+# Co 5 minut: zmiana konfiguracji albo rotacja hasła RDS => restart
+cat >/etc/systemd/system/parking-refresh.service <<'UNIT'
+[Unit]
+Description=Parking: odswiezenie konfiguracji i hasla bazy
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+Environment=HOME=/root
+ExecStart=/opt/parking/bin/apply.sh
+UNIT
+
+cat >/etc/systemd/system/parking-refresh.timer <<'UNIT'
+[Unit]
+Description=Parking: odswiezanie konfiguracji co 5 minut
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target
+UNIT
+
+systemctl daemon-reload
+systemctl enable parking.service parking-refresh.timer
+systemctl start parking-refresh.timer
+# Do pierwszego wdrożenia z CI nie ma czego uruchamiać
+systemctl start parking.service || echo "Brak wdrozenia z CI"
