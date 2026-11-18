@@ -7,7 +7,7 @@ variables.tf       zmienne
 outputs.tf         outputy
 terraform.tfvars   użytkownicy
 hasla.sh           dane logowania do przekazania
-modules/
+modules
   policies/        polityki IAM
   iam/             użytkownicy i hasła
   vpc/             sieć
