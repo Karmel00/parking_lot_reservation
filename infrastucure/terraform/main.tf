@@ -129,6 +129,19 @@ module "budget" {
   emails    = var.budget_emails
 }
 
+module "cd-runner" {
+  source = "./modules/cd-runner"
+
+  project    = var.project
+  region     = var.region
+  account_id = data.aws_caller_identity.current.account_id
+
+  frontend_bucket     = module.frontend.bucket_name
+  distribution_id     = module.frontend.distribution_id
+  ecr_repository_arns = module.ecr.repository_arns
+  instance_id         = module.compute.instance_id
+}
+
 # Wartości dla CI (bez dostępu do state)
 locals {
   public_parameters = {
