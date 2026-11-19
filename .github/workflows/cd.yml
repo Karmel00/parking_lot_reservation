@@ -15,7 +15,7 @@ env:
   AWS_REGION: eu-west-1
   PROJECT: parking-lot-reservation
   DOCKERFILE: infrastucure/docker/dockerfile
-  COMPOSE_FILE: infrastucure/docker/docker-compose.yml
+  COMPOSE_FILE: infrastucure/docker/docker-compose.yaml
   NGINX_FILE: infrastucure/gateway/nginx.conf
 
 jobs:
