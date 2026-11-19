@@ -5,7 +5,6 @@ x-logging: &logging
   options:
     awslogs-region: ${AWS_REGION}
     awslogs-group: ${LOG_GROUP}
-    tag: "{{.Name}}"
 
 services:
   gateway:
