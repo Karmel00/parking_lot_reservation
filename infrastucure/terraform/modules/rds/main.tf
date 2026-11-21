@@ -1,3 +1,9 @@
+# Logi Postgres
+resource "aws_cloudwatch_log_group" "postgresql" {
+  name              = "/aws/rds/instance/${var.project}-postgres/postgresql"
+  retention_in_days = 7
+}
+
 resource "aws_db_instance" "postgres" {
   # Podstawowa konfiguracja
   identifier     = "${var.project}-postgres"
@@ -21,6 +27,9 @@ resource "aws_db_instance" "postgres" {
   vpc_security_group_ids = [var.db_security_group_id]
   publicly_accessible    = false
 
+  # Eksport logów bazy do CloudWatch
+  enabled_cloudwatch_logs_exports = ["postgresql"]
+
   # Bezpieczeństwo danych
   storage_encrypted = true
 
@@ -38,4 +47,6 @@ resource "aws_db_instance" "postgres" {
     Name = "${var.project}-postgres"
     Tier = "database"
   }
+
+  depends_on = [aws_cloudwatch_log_group.postgresql]
 }

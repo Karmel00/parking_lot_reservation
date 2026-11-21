@@ -197,3 +197,65 @@ resource "aws_eip" "this" {
 
   tags = { Name = local.name }
 }
+
+# Agent CloudWatch RAM
+resource "aws_iam_role_policy_attachment" "cw_agent" {
+  role       = aws_iam_role.this.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+}
+
+resource "aws_ssm_parameter" "cw_agent" {
+  name = "AmazonCloudWatch-${var.project}"
+  type = "String"
+  value = jsonencode({
+    agent = { metrics_collection_interval = 60 }
+    metrics = {
+      namespace         = "CWAgent"
+      append_dimensions = { InstanceId = "$${aws:InstanceId}" }
+      metrics_collected = {
+        mem = { measurement = ["mem_used_percent"] }
+      }
+    }
+  })
+}
+
+resource "aws_ssm_association" "cw_agent_install" {
+  association_name = "${var.project}-cw-agent-install"
+  name             = "AWS-ConfigureAWSPackage"
+
+  parameters = {
+    action = "Install"
+    name   = "AmazonCloudWatchAgent"
+  }
+
+  targets {
+    key    = "InstanceIds"
+    values = [aws_instance.this.id]
+  }
+
+  wait_for_success_timeout_seconds = 600
+}
+
+resource "aws_ssm_association" "cw_agent_config" {
+  association_name    = "${var.project}-cw-agent-config"
+  name                = "AmazonCloudWatch-ManageAgent"
+  schedule_expression = "rate(1 day)"
+
+  parameters = {
+    action                        = "configure"
+    mode                          = "ec2"
+    optionalConfigurationSource   = "ssm"
+    optionalConfigurationLocation = aws_ssm_parameter.cw_agent.name
+    optionalRestart               = "yes"
+  }
+
+  targets {
+    key    = "InstanceIds"
+    values = [aws_instance.this.id]
+  }
+
+  depends_on = [
+    aws_ssm_association.cw_agent_install,
+    aws_iam_role_policy_attachment.cw_agent,
+  ]
+}
