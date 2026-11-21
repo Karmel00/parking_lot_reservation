@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Icon from './components/Icons.jsx';
-import { getParkings, useMockApi } from './services/parkingService.js';
+import { getParkings, saveReservation, useMockApi } from './services/parkingService.js';
 
 const STORAGE_KEY = 'parkflow-demo-reservations-v1';
 const currency = new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN', maximumFractionDigits: 0 });
@@ -120,10 +120,18 @@ function App() {
     if (!duration) { setSearchError('Data zakończenia musi być późniejsza niż data rozpoczęcia.'); return; }
     setSearchError(''); setSubmittedLocation(location);
   }
-  function confirmReservation(parking) {
+  async function confirmReservation(parking) {
     if (remaining(parking) < 1) { setSearchError('Brak dostępnych miejsc w wybranym terminie.'); setSelectedParking(null); return; }
-    const newReservation = { id: `PF-${Date.now()}`, parkingId: parking.id, parkingName: parking.name, address: parking.address, from: startDate, to: endDate, price: getHours(startDate, endDate) * parking.pricePerHour, status: 'active' };
-    setReservations((prev) => [newReservation, ...prev]); setSelectedParking(null); setToast('Utworzono testową rezerwację.'); setView('reservations');
+    let message = 'Utworzono testową rezerwację.';
+    let id = `PF-${Date.now()}`;
+    try {
+      const saved = await saveReservation({ parkingId: parking.id, from: startDate, to: endDate });
+      if (saved) { id = `DB-${saved.id}`; message = `Rezerwacja zapisana w bazie danych (nr ${saved.id}).`; }
+    } catch (e) {
+      message = `Rezerwacja zapisana tylko lokalnie. ${e.message}`;
+    }
+    const newReservation = { id, parkingId: parking.id, parkingName: parking.name, address: parking.address, from: startDate, to: endDate, price: getHours(startDate, endDate) * parking.pricePerHour, status: 'active' };
+    setReservations((prev) => [newReservation, ...prev]); setSelectedParking(null); setToast(message); setView('reservations');
   }
   function cancelReservation(id) {
     setReservations((prev) => prev.map((r) => r.id === id ? { ...r, status: 'cancelled' } : r)); setToast('Rezerwacja została anulowana w trybie demo.');
