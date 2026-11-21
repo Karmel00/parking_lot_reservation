@@ -13,7 +13,6 @@ output "subnet_ids" {
 
 output "security_group_ids" {
   value = {
-    web = aws_security_group.web.id
     app = aws_security_group.app.id
     db  = aws_security_group.db.id
   }

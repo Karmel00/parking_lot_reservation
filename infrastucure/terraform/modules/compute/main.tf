@@ -37,11 +37,14 @@ resource "aws_vpc_security_group_ingress_rule" "http_from_cloudfront" {
   ip_protocol       = "tcp"
 }
 
-resource "aws_vpc_security_group_egress_rule" "all" {
+# Ruch wychodzący tylko HTTPS: ECR, SSM, CloudWatch, Docker Hub, GitHub, pakiety
+resource "aws_vpc_security_group_egress_rule" "https" {
   security_group_id = aws_security_group.edge.id
-  description       = "Caly ruch wychodzacy"
+  description       = "HTTPS wychodzacy (ECR, SSM, CloudWatch, obrazy, pakiety)"
   cidr_ipv4         = "0.0.0.0/0"
-  ip_protocol       = "-1"
+  from_port         = 443
+  to_port           = 443
+  ip_protocol       = "tcp"
 }
 
 # Rola VM
