@@ -105,40 +105,8 @@ resource "aws_route_table_association" "private_db_secondary" {
   route_table_id = aws_route_table.private_db.id
 }
 
-# Security groups: internet -> web -> app -> db
-resource "aws_security_group" "web" {
-  name        = "${var.name}-web"
-  description = "Web tier: HTTP/HTTPS z internetu"
-  vpc_id      = aws_vpc.main.id
-
-  tags = { Name = "${var.name}-sg-web" }
-}
-
-resource "aws_vpc_security_group_ingress_rule" "web_http" {
-  security_group_id = aws_security_group.web.id
-  description       = "HTTP z internetu"
-  cidr_ipv4         = "0.0.0.0/0"
-  from_port         = 80
-  to_port           = 80
-  ip_protocol       = "tcp"
-}
-
-resource "aws_vpc_security_group_ingress_rule" "web_https" {
-  security_group_id = aws_security_group.web.id
-  description       = "HTTPS z internetu"
-  cidr_ipv4         = "0.0.0.0/0"
-  from_port         = 443
-  to_port           = 443
-  ip_protocol       = "tcp"
-}
-
-resource "aws_vpc_security_group_egress_rule" "web_all" {
-  security_group_id = aws_security_group.web.id
-  description       = "Caly ruch wychodzacy"
-  cidr_ipv4         = "0.0.0.0/0"
-  ip_protocol       = "-1"
-}
-
+# Security groups: CloudFront -> app (VM) -> db
+# Warstwa Web to CloudFront: VM przyjmuje ruch przez sg-edge (modules/compute)
 resource "aws_security_group" "app" {
   name        = "${var.name}-app"
   description = "App tier: ruch tylko z web SG"
@@ -147,20 +115,14 @@ resource "aws_security_group" "app" {
   tags = { Name = "${var.name}-sg-app" }
 }
 
-resource "aws_vpc_security_group_ingress_rule" "app_from_web" {
+# Ruch wychodzący z VM tylko do bazy
+resource "aws_vpc_security_group_egress_rule" "app_to_db" {
   security_group_id            = aws_security_group.app.id
-  description                  = "API tylko z web SG"
-  referenced_security_group_id = aws_security_group.web.id
-  from_port                    = var.app_port
-  to_port                      = var.app_port
+  description                  = "PostgreSQL tylko do db SG"
+  referenced_security_group_id = aws_security_group.db.id
+  from_port                    = var.db_port
+  to_port                      = var.db_port
   ip_protocol                  = "tcp"
-}
-
-resource "aws_vpc_security_group_egress_rule" "app_all" {
-  security_group_id = aws_security_group.app.id
-  description       = "Caly ruch wychodzacy"
-  cidr_ipv4         = "0.0.0.0/0"
-  ip_protocol       = "-1"
 }
 
 resource "aws_security_group" "db" {
@@ -189,4 +151,3 @@ resource "aws_vpc_endpoint" "s3" {
 
   tags = { Name = "${var.name}-vpce-s3" }
 }
-

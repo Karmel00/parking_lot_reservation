@@ -160,3 +160,34 @@ resource "aws_ssm_parameter" "public" {
   type  = "String"
   value = each.value
 }
+
+# Metryki Route 53 i CloudFront
+provider "aws" {
+  alias  = "us_east_1"
+  region = "us-east-1"
+
+  default_tags {
+    tags = {
+      Project   = var.project
+      ManagedBy = "terraform"
+    }
+  }
+}
+
+module "monitoring" {
+  source = "./modules/monitoring"
+
+  providers = {
+    aws           = aws
+    aws.us_east_1 = aws.us_east_1
+  }
+
+  project         = var.project
+  region          = var.region
+  app_domain      = module.frontend.domain_name
+  distribution_id = module.frontend.distribution_id
+  instance_id     = module.compute.instance_id
+  app_log_group   = module.compute.log_group_name
+  alert_emails    = var.budget_emails
+}
+

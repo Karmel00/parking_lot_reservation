@@ -10,3 +10,8 @@ output "public_dns" {
   description = "Origin CloudFront"
   value       = aws_eip.this.public_dns
 }
+
+output "log_group_name" {
+  description = "Grupa logów kontenerów"
+  value       = aws_cloudwatch_log_group.app.name
+}

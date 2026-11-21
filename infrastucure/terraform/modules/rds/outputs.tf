@@ -22,3 +22,8 @@ output "db_secret_arn" {
   description = "ARN sekretu z hasłem administratora"
   value       = aws_db_instance.postgres.master_user_secret[0].secret_arn
 }
+
+output "log_group_name" {
+  description = "Grupa logów PostgreSQL"
+  value       = aws_cloudwatch_log_group.postgresql.name
+}
