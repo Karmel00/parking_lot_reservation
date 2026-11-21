@@ -17,6 +17,8 @@ env:
   DOCKERFILE: infrastucure/docker/dockerfile
   COMPOSE_FILE: infrastucure/docker/docker-compose.yaml
   NGINX_FILE: infrastucure/gateway/nginx.conf
+  VITE_USE_MOCK_API: 'true'
+  VITE_API_BASE_URL: /api
 
 jobs:
   build-and-test:
