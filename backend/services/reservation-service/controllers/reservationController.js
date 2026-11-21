@@ -1,23 +1,34 @@
 const pool = require('../config/database');
 
-// GET /reservations – lista rezerwacji
+// Formatuje identyfikator bazy na format zgodny z frontendem
+const formatReservation = (row) => ({
+    id: `PF-${row.id}`,
+    user_id: row.user_id,
+    parkingId: row.parking_id,
+    from: row.reservation_from,
+    to: row.reservation_to,
+    price: Number(row.price),
+    status: row.status
+});
+
+// GET /api/reservations
 const getReservations = async (req, res) => {
     try {
         const result = await pool.query(
             'SELECT * FROM reservations ORDER BY id ASC'
         );
 
-        res.status(200).json(result.rows);
+        res.status(200).json(result.rows.map(formatReservation));
     } catch (error) {
         console.error('Get reservations error:', error.message);
         res.status(500).json({ error: 'Internal server error' });
     }
 };
 
-// GET /reservations/:id – szczegóły rezerwacji
+// GET /api/reservations/:id
 const getReservationById = async (req, res) => {
     try {
-        const id = Number(req.params.id);
+        const id = Number(String(req.params.id).replace(/^PF-/, ''));
 
         if (!Number.isInteger(id) || id <= 0) {
             return res.status(400).json({ error: 'Invalid reservation ID' });
@@ -32,64 +43,69 @@ const getReservationById = async (req, res) => {
             return res.status(404).json({ error: 'Reservation not found' });
         }
 
-        res.status(200).json(result.rows[0]);
+        res.status(200).json(formatReservation(result.rows[0]));
     } catch (error) {
         console.error('Get reservation error:', error.message);
         res.status(500).json({ error: 'Internal server error' });
     }
 };
 
-// POST /reservations – utworzenie rezerwacji
+// POST /api/reservations
 const createReservation = async (req, res) => {
     try {
-        const { user_id, parking_spot_id, start_time, end_time } = req.body;
+        const { parkingId, from, to, price = 0 } = req.body;
 
         if (
-            !Number.isInteger(user_id) || user_id <= 0 ||
-            !Number.isInteger(parking_spot_id) || parking_spot_id <= 0 ||
-            !start_time || !end_time ||
-            Number.isNaN(Date.parse(start_time)) ||
-            Number.isNaN(Date.parse(end_time)) ||
-            new Date(end_time) <= new Date(start_time)
+            typeof parkingId !== 'string' ||
+            !/^P\d{3,}$/.test(parkingId) ||
+            !from ||
+            !to ||
+            Number.isNaN(Date.parse(from)) ||
+            Number.isNaN(Date.parse(to)) ||
+            new Date(to) <= new Date(from) ||
+            !Number.isFinite(Number(price)) ||
+            Number(price) < 0
         ) {
             return res.status(400).json({ error: 'Invalid reservation data' });
         }
 
         const result = await pool.query(
             `INSERT INTO reservations
-            (user_id, parking_spot_id, start_time, end_time)
-            VALUES ($1, $2, $3, $4)
-            RETURNING *`,
-            [user_id, parking_spot_id, start_time, end_time]
+                (parking_id, reservation_from, reservation_to, price)
+             VALUES ($1, $2, $3, $4)
+             RETURNING *`,
+            [parkingId, from, to, Number(price)]
         );
 
-        res.status(201).json(result.rows[0]);
+        res.status(201).json(formatReservation(result.rows[0]));
     } catch (error) {
         console.error('Create reservation error:', error.message);
         res.status(500).json({ error: 'Internal server error' });
     }
 };
 
-// PUT /reservations/:id – aktualizacja rezerwacji
+// PUT /api/reservations/:id
 const updateReservation = async (req, res) => {
     try {
-        const id = Number(req.params.id);
+        const id = Number(String(req.params.id).replace(/^PF-/, ''));
 
         if (!Number.isInteger(id) || id <= 0) {
             return res.status(400).json({ error: 'Invalid reservation ID' });
         }
 
-        const { user_id, parking_spot_id, start_time, end_time, status } = req.body;
-
-        const validStatuses = ['pending', 'confirmed', 'cancelled'];
+        const { parkingId, from, to, price = 0, status } = req.body;
+        const validStatuses = ['active', 'cancelled'];
 
         if (
-            !Number.isInteger(user_id) || user_id <= 0 ||
-            !Number.isInteger(parking_spot_id) || parking_spot_id <= 0 ||
-            !start_time || !end_time ||
-            Number.isNaN(Date.parse(start_time)) ||
-            Number.isNaN(Date.parse(end_time)) ||
-            new Date(end_time) <= new Date(start_time) ||
+            typeof parkingId !== 'string' ||
+            !/^P\d{3,}$/.test(parkingId) ||
+            !from ||
+            !to ||
+            Number.isNaN(Date.parse(from)) ||
+            Number.isNaN(Date.parse(to)) ||
+            new Date(to) <= new Date(from) ||
+            !Number.isFinite(Number(price)) ||
+            Number(price) < 0 ||
             !validStatuses.includes(status)
         ) {
             return res.status(400).json({ error: 'Invalid reservation data' });
@@ -97,31 +113,31 @@ const updateReservation = async (req, res) => {
 
         const result = await pool.query(
             `UPDATE reservations
-            SET user_id = $1,
-                parking_spot_id = $2,
-                start_time = $3,
-                end_time = $4,
-                status = $5
-            WHERE id = $6
-            RETURNING *`,
-            [user_id, parking_spot_id, start_time, end_time, status, id]
+             SET parking_id = $1,
+                 reservation_from = $2,
+                 reservation_to = $3,
+                 price = $4,
+                 status = $5
+             WHERE id = $6
+             RETURNING *`,
+            [parkingId, from, to, Number(price), status, id]
         );
 
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Reservation not found' });
         }
 
-        res.status(200).json(result.rows[0]);
+        res.status(200).json(formatReservation(result.rows[0]));
     } catch (error) {
         console.error('Update reservation error:', error.message);
         res.status(500).json({ error: 'Internal server error' });
     }
 };
 
-// DELETE /reservations/:id – usunięcie rezerwacji
+// DELETE /api/reservations/:id
 const deleteReservation = async (req, res) => {
     try {
-        const id = Number(req.params.id);
+        const id = Number(String(req.params.id).replace(/^PF-/, ''));
 
         if (!Number.isInteger(id) || id <= 0) {
             return res.status(400).json({ error: 'Invalid reservation ID' });
@@ -138,7 +154,7 @@ const deleteReservation = async (req, res) => {
 
         res.status(200).json({
             message: 'Reservation deleted successfully',
-            reservation: result.rows[0]
+            reservation: formatReservation(result.rows[0])
         });
     } catch (error) {
         console.error('Delete reservation error:', error.message);
