@@ -1,8 +1,17 @@
 const express = require('express');
+const cors = require('cors');
 const pool = require('./config/database');
 const reservationRoutes = require('./routes/reservations');
 
 const app = express();
+
+// Zezwalamy na komunikację z lokalnym frontendem Vite
+app.use(cors({
+    origin: 'http://localhost:5173',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type']
+}));
+
 app.use(express.json());
 
 app.use('/api/reservations', reservationRoutes);
