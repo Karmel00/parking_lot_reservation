@@ -1,6 +1,6 @@
 [
   {
-    "id": "P001",
+    "id": "P",
     "name": "Parking Rynek Północ",
     "address": "ul. Kiełbaśnicza 12, Wrocław",
     "district": "Stare Miasto",
@@ -13,7 +13,7 @@
     "illustration": "center"
   },
   {
-    "id": "P002",
+    "id": "D",
     "name": "Parking Dworzec Centrum",
     "address": "ul. Piłsudskiego 98, Wrocław",
     "district": "Dworzec Główny",
@@ -26,7 +26,7 @@
     "illustration": "station"
   },
   {
-    "id": "P003",
+    "id": "S",
     "name": "Parking Sky Tower",
     "address": "ul. Powstańców Śląskich 95, Wrocław",
     "district": "Krzyki",
@@ -39,7 +39,7 @@
     "illustration": "tower"
   },
   {
-    "id": "P004",
+    "id": "G",
     "name": "Parking Grunwaldzki",
     "address": "pl. Grunwaldzki 10, Wrocław",
     "district": "Śródmieście",
@@ -52,7 +52,7 @@
     "illustration": "square"
   },
   {
-    "id": "P005",
+    "id": "M",
     "name": "Parking Magnolia Zachód",
     "address": "ul. Legnicka 58, Wrocław",
     "district": "Fabryczna",
@@ -65,7 +65,7 @@
     "illustration": "garden"
   },
   {
-    "id": "P006",
+    "id": "H",
     "name": "Parking Hala Wschód",
     "address": "ul. Wystawowa 1, Wrocław",
     "district": "Zalesie",

@@ -3,6 +3,7 @@ import Icon from './components/Icons.jsx';
 import {
   getParkings,
   getReservations,
+  getAvailableSpots,
   saveReservation,
   cancelReservation,
   useMockApi
@@ -16,13 +17,17 @@ const currency = new Intl.NumberFormat('pl-PL', {
 
 // Dopasowuje rezerwację z API do danych parkingu z pliku JSON
 function enrichReservation(reservation, parkings) {
-  const numericParkingId = String(reservation.parkingId).replace(/\D/g, '');
-  const parkingId = `P${numericParkingId.padStart(3, '0')}`;
+  const spotCode = String(
+    reservation.parking_spot_id ?? reservation.parkingId ?? ''
+  );
+
+  const parkingId = spotCode.charAt(0);
   const parking = parkings.find((item) => item.id === parkingId);
 
   return {
     ...reservation,
     parkingId,
+    parking_spot_id: spotCode,
     parkingName: parking?.name ?? `Parking ${parkingId}`,
     address: parking?.address ?? 'Brak danych adresowych',
     price: Number(reservation.price ?? 0)
@@ -119,7 +124,12 @@ function ReservationModal({
   onClose,
   onConfirm,
   submitting,
-  error
+  error,
+  availableSpots,
+  availableSpotsLoading,
+  availableSpotsError,
+  selectedSpotCode,
+  onSpotChange
 }) {
   if (!parking) return null;
 
@@ -134,6 +144,38 @@ function ReservationModal({
       <p className="eyebrow">POTWIERDZENIE REZERWACJI</p>
       <h2 id="modal-title">Jeszcze tylko jeden krok</h2>
       <p className="modal-intro">Sprawdź szczegóły przed utworzeniem rezerwacji.</p>
+      <div className="spot-selection">
+        <label htmlFor="parking-spot">Wybierz miejsce parkingowe</label>
+
+        {availableSpotsLoading && (
+          <p>Ładowanie dostępnych miejsc...</p>
+        )}
+
+        {availableSpotsError && (
+          <p className="form-error" role="alert">{availableSpotsError}</p>
+        )}
+
+        {!availableSpotsLoading && !availableSpotsError && (
+          <select
+            id="parking-spot"
+            value={selectedSpotCode}
+            onChange={(event) => onSpotChange(event.target.value)}
+            disabled={submitting || availableSpots.length === 0}
+          >
+            <option value="">Wybierz miejsce</option>
+            {availableSpots.map((spot) => (
+              <option key={spot.spot_code} value={spot.spot_code}>
+                {spot.spot_code}
+              </option>
+            ))}
+          </select>
+        )}
+
+        {!availableSpotsLoading && !availableSpotsError && availableSpots.length === 0 && (
+          <p>Brak wolnych miejsc w wybranym terminie.</p>
+        )}
+      </div>
+
       <div className="modal-summary">
         <div><span>Parking</span><strong>{parking.name}</strong></div>
         <div><span>Rozpoczęcie</span><strong>{dateLabel(from)}</strong></div>
@@ -147,7 +189,14 @@ function ReservationModal({
       <button
         className="primary-button primary-button--wide"
         onClick={() => onConfirm(parking)}
-        disabled={hours <= 0 || submitting}
+        disabled={
+          hours <= 0 ||
+          submitting ||
+          !selectedSpotCode ||
+          availableSpotsLoading ||
+          availableSpotsError ||
+          !availableSpots.some((spot) => spot.spot_code === selectedSpotCode)
+        }
       >
         {submitting ? 'Zapisywanie...' : 'Potwierdź rezerwację'}
         {!submitting && <Icon name="arrow" size={18}/>}
@@ -175,6 +224,10 @@ function App() {
   const [sortOrder, setSortOrder] = useState('recommended');
 
   const [selectedParking, setSelectedParking] = useState(null);
+  const [availableSpots, setAvailableSpots] = useState([]);
+  const [availableSpotsLoading, setAvailableSpotsLoading] = useState(false);
+  const [availableSpotsError, setAvailableSpotsError] = useState('');
+  const [selectedSpotCode, setSelectedSpotCode] = useState('');
   const [reservations, setReservations] = useState([]);
   const [reservationsLoading, setReservationsLoading] = useState(false);
   const [reservationsError, setReservationsError] = useState('');
@@ -232,6 +285,50 @@ function App() {
     };
   }, [parkings]);
 
+    const duration = getHours(startDate, endDate);
+
+  // Pobieranie wolnych miejsc dla wybranego parkingu i terminu
+  useEffect(() => {
+    if (!selectedParking || !duration || useMockApi) {
+      setAvailableSpots([]);
+      setSelectedSpotCode('');
+      return;
+    }
+
+    let active = true;
+
+    async function fetchAvailableSpots() {
+      setAvailableSpotsLoading(true);
+      setAvailableSpotsError('');
+      setSelectedSpotCode('');
+
+      try {
+        const data = await getAvailableSpots({
+          parkingId: selectedParking.id,
+          from: startDate,
+          to: endDate
+        });
+
+        if (active) {
+          setAvailableSpots(data);
+        }
+      } catch (e) {
+        if (active) {
+          setAvailableSpotsError(e.message);
+          setAvailableSpots([]);
+        }
+      } finally {
+        if (active) setAvailableSpotsLoading(false);
+      }
+    }
+
+    fetchAvailableSpots();
+
+    return () => {
+      active = false;
+    };
+  }, [selectedParking, startDate, endDate, duration]);
+
   const remaining = (parking) => Math.max(
     0,
     parking.availableSpots - reservations.filter(
@@ -242,7 +339,6 @@ function App() {
     ).length
   );
 
-  const duration = getHours(startDate, endDate);
 
   const filteredParkings = useMemo(() => {
     const phrase = submittedLocation.trim().toLocaleLowerCase('pl-PL');
@@ -274,9 +370,14 @@ function App() {
   }
 
   // Tworzenie rezerwacji przez API
-  async function confirmReservation(parking) {
-    if (remaining(parking) < 1) {
-      setReservationActionError('Brak dostępnych miejsc w wybranym terminie.');
+    async function confirmReservation(parking) {
+    if (!selectedSpotCode) {
+      setReservationActionError('Wybierz miejsce parkingowe.');
+      return;
+    }
+
+    if (!availableSpots.some((spot) => spot.spot_code === selectedSpotCode)) {
+      setReservationActionError('Wybrane miejsce nie jest już dostępne. Odśwież listę miejsc.');
       return;
     }
 
@@ -286,7 +387,7 @@ function App() {
 
     try {
       const saved = await saveReservation({
-        parkingId: parking.id,
+        parkingSpotId: selectedSpotCode,
         from: startDate,
         to: endDate
       });
@@ -295,6 +396,8 @@ function App() {
 
       setReservations((prev) => [newReservation, ...prev]);
       setSelectedParking(null);
+      setSelectedSpotCode('');
+      setAvailableSpots([]);
       setToast(`Rezerwacja została zapisana w bazie danych (${saved.id}).`);
       setView('reservations');
     } catch (e) {
@@ -569,6 +672,11 @@ function App() {
       onConfirm={confirmReservation}
       submitting={reservationActionLoading}
       error={reservationActionError}
+      availableSpots={availableSpots}
+      availableSpotsLoading={availableSpotsLoading}
+      availableSpotsError={availableSpotsError}
+      selectedSpotCode={selectedSpotCode}
+      onSpotChange={setSelectedSpotCode}
     />
   </div>;
 }
