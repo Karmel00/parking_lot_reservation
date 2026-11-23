@@ -17,6 +17,7 @@ modules
   frontend/        S3 + CloudFront
   budget/          alert kosztowy
   cd-runner/       konto usługowe GitHub Actions (pipeline CD)
+  monitoring/      sonda /health (Route 53), alarm e-mail, dashboard CloudWatch
 ../docker/         Dockerfile i docker-compose dla backendu (używa ich CD, nie Terraform)
 ../gateway/        nginx.conf bramki API (używa go CD, nie Terraform)
 ```
@@ -63,6 +64,21 @@ Dwa ograniczenia zostają świadomie, ze względu na budżet projektu:
 
 - **VM z backendem stoi w podsieci publicznej**, bo podsieć prywatna nie ma wyjścia do internetu. Przeniesienie VM wymaga bramy NAT. Ryzyko ograniczają reguły: VM przyjmuje ruch wyłącznie z CloudFront, nie ma otwartego SSH, a ruch wychodzący jest ograniczony do HTTPS i bazy.
 - **Ruch CloudFront → VM idzie po HTTP** (`http-only`). Szyfrowanie tego odcinka wymaga certyfikatu wystawionego na własną domenę.
+
+## Monitoring i FinOps
+
+Koszty, dostępność i wydajność aplikacji są pilnowane automatycznie; całość jest w Terraformie (moduły `budget`, `monitoring`, `rds`, `compute`).
+
+| Element | Konfiguracja | Gdzie w konsoli |
+| --- | --- | --- |
+| Budżet | 30 USD miesięcznie, progi 50/80/100%, e-mail do zespołu | Billing → Budgets → `parking-lot-reservation-monthly` |
+| `/api/health` | `200` + `UP` albo `500` + `DOWN`; sprawdza połączenie z bazą | Route 53 → Health checks → `parking-lot-reservation-api-health` |
+| Alarm awarii | sonda co 30 s, 3 nieudane próby → e-mail (także po powrocie) | CloudWatch → Alarms → `parking-lot-reservation-api-down` |
+| Logi aplikacji | stdout/stderr kontenerów, bramka nginx w JSON (kod, czas odpowiedzi), 7 dni | CloudWatch → Log groups → `/parking-lot-reservation/app` |
+| Logi bazy | eksport PostgreSQL z RDS, 7 dni | CloudWatch → Log groups → `/aws/rds/instance/parking-lot-reservation-postgres/postgresql` |
+| Dashboard | żądania i kody HTTP, czas odpowiedzi API, CPU, RAM, stan `/api/health` | CloudWatch → Dashboards → `parking-lot-reservation` |
+
+Adresy powiadomień ustawia się w `terraform.tfvars` (`budget_emails`); ta sama lista dostaje alerty budżetu i alarm awarii. Każdy adres musi potwierdzić subskrypcję alarmu linkiem z maila od AWS. Pusta lista wyłącza budżet i powiadomienia.
 
 ## Inicjalizacja VM
 
