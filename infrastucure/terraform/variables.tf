@@ -103,5 +103,5 @@ variable "budget_limit_usd" {
 variable "budget_emails" {
   description = "Adresy alertów (pusta lista = brak)"
   type        = list(string)
-  default     = []
+  default     = ["kamijjj.2005@gamil.com"]
 }

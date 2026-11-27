@@ -163,3 +163,59 @@ jobs:
 
           echo "Publiczny URL nie zwraca aktualnej wersji"
           exit 1
+
+  e2e-tests:
+    name: Testy API i E2E (Playwright)
+    runs-on: ubuntu-latest
+    needs: healthcheck
+    defaults:
+      run:
+        working-directory: tests
+    env:
+      LIVE_APP_URL: ${{ vars.LIVE_APP_URL }}
+    steps:
+      - name: Sprawdzenie adresu aplikacji
+        run: |
+          if [ -z "$LIVE_APP_URL" ]; then
+            echo "Brak zmiennej LIVE_APP_URL w ustawieniach repozytorium (Variables)"
+            exit 1
+          fi
+          echo "Testy na adresie: $LIVE_APP_URL"
+        working-directory: .
+
+      - uses: actions/checkout@v6
+
+      - name: Konfiguracja Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+
+      - name: Instalacja zależności i przeglądarki Playwright
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Testy integracyjne API (Supertest)
+        run: npm run test:api
+
+      - name: Testy E2E w trybie headless (Playwright)
+        if: ${{ !cancelled() }}
+        run: npm run test:e2e
+
+      - name: Raport Playwright
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: playwright-report
+          path: tests/playwright-report/
+          retention-days: 14
+
+      - name: Zrzuty i wideo z błędów
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: playwright-test-results
+          path: tests/test-results/
+          retention-days: 14

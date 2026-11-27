@@ -1,0 +1,20 @@
+{
+  "name": "parking-lot-reservation-tests",
+  "private": true,
+  "description": "Testy integracyjne API (Supertest) i E2E (Playwright) uruchamiane na działającej aplikacji",
+  "scripts": {
+    "test:api": "jest",
+    "test:e2e": "playwright test",
+    "test": "jest && playwright test",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0",
+    "jest": "30.5.2",
+    "supertest": "7.3.2"
+  },
+  "jest": {
+    "testMatch": ["**/api.test.js"],
+    "testTimeout": 20000
+  }
+}
